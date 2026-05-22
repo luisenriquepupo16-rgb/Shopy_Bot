@@ -8,7 +8,7 @@ TOKEN = "8907545202:AAFH1we_J12zJhjDx1tCCZHddkLKT8x8naw" # <-- CAMBIA ESTO
 
 # Tu ID de usuario de Telegram (CÁMBIALO por el tuyo)
 # Cómo obtenerlo: Habla con @userinfobot en Telegram, te enviará tu ID
-MI_USER_ID = "6985343427"  # <-- CAMBIA ESTO
+MI_USER_ID = 6985343427  # <-- CAMBIA ESTO
 
 # Precios de los scripts (en USDT)
 # Formato: "ID_del_script": precio

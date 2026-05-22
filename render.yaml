@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: shopy-bot
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
+    envVars:
+      - key: 8907545202:AAFH1we_J12zJhjDx1tCCZHddkLKT8x8naw
+        sync: false
