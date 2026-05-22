@@ -8,4 +8,3 @@ services:
     envVars:
       - key: TELEGRAM_TOKEN
         value: 8907545202:AAFH1we_J12zJhjDx1tCCZHddkLKT8x8naw
-        sync: false
