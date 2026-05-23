@@ -264,3 +264,4 @@ async def cmd_listar_pagos(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     mensaje += "Para confirmar: /confirmar [ID_pago]"
     await update.message.reply_text(mensaje)
+

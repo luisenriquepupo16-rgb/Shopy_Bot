@@ -1,12 +1,13 @@
 # bot.py
 # ============================================================
-# PUNTO DE ENTRADA PRINCIPAL - VERSION CORREGIDA
+# PUNTO DE ENTRADA PRINCIPAL - VERSION 1.2 CON NOTIFICACIÓN AL ADMIN
 # ============================================================
 
 import sys
 import os
 import asyncio
 import logging
+import time  # <-- AGREGADO para la notificación
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -18,10 +19,11 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from telegram.ext import Application, CommandHandler
 from telegram.error import TimedOut, NetworkError, Conflict
-from config import TOKEN
+from config import TOKEN, MI_USER_ID  # <-- AGREGADO MI_USER_ID
 from handlers import (
     cmd_start, cmd_precio, cmd_comprar, cmd_estado,
     cmd_confirmar, cmd_listar_pagos
+    # NOTA: cmd_logs NO está incluido (por ahora)
 )
 
 async def error_handler(update, context):
@@ -40,7 +42,7 @@ async def main():
     app = Application.builder().token(TOKEN).build()
     
     # ============================================================
-    # REGISTRO EXPLÍCITO DE COMANDOS - VERIFICAR CADA UNO
+    # REGISTRO EXPLÍCITO DE COMANDOS
     # ============================================================
     logger.info("Registrando comandos...")
     
@@ -50,7 +52,7 @@ async def main():
     app.add_handler(CommandHandler("precio", cmd_precio))
     logger.info("  ✓ /precio registrado")
     
-    app.add_handler(CommandHandler("comprar", cmd_comprar))  # <--- IMPORTANTE
+    app.add_handler(CommandHandler("comprar", cmd_comprar))
     logger.info("  ✓ /comprar registrado")
     
     app.add_handler(CommandHandler("estado", cmd_estado))
@@ -78,6 +80,26 @@ async def main():
         )
         
         logger.info("✅ Bot conectado y funcionando!")
+        
+        # ============================================================
+        # NOTIFICACIÓN DE INICIO AL ADMIN (TIP #008)
+        # ============================================================
+        try:
+            await app.bot.send_message(
+                chat_id=MI_USER_ID,
+                text=(
+                    "✅ *Bot iniciado correctamente*\n\n"
+                    "🔌 Conectado a Telegram\n"
+                    "📍 Railway activo\n"
+                    f"📅 {time.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                    "🟢 Listo para recibir comandos."
+                ),
+                parse_mode="Markdown"
+            )
+            logger.info("📨 Notificación de inicio enviada al admin")
+        except Exception as e:
+            logger.warning(f"No se pudo enviar notificación de inicio: {e}")
+        
         logger.info("💡 Presiona Ctrl+C para detener")
         
         # Mantener vivo
