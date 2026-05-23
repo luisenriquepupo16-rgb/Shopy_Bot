@@ -1,6 +1,6 @@
 # bot.py
 # ============================================================
-# PUNTO DE ENTRADA PRINCIPAL CON RECONEXIÓN ROBUSTA
+# PUNTO DE ENTRADA PRINCIPAL - VERSION CORREGIDA
 # ============================================================
 
 import sys
@@ -8,7 +8,6 @@ import os
 import asyncio
 import logging
 
-# Configurar logging para ver errores detallados
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
@@ -26,39 +25,46 @@ from handlers import (
 )
 
 async def error_handler(update, context):
-    """Maneja errores globales del bot"""
     error = context.error
-    logger.error(f"Error: {error}")
-    
-    if isinstance(error, (TimedOut, NetworkError)):
-        logger.warning("Error de red, reintentando...")
-    elif isinstance(error, Conflict):
+    logger.error(f"Error global: {error}")
+    if isinstance(error, Conflict):
         logger.critical("Conflicto: otro bot con el mismo token está corriendo")
-    else:
-        logger.exception("Error no manejado")
 
 async def main():
-    """Función principal con reconexión automática"""
-    
     logger.info("🤖 Iniciando bot...")
     
     if TOKEN == "1234567890:ABCdefGHIjklmNOPqrstUVwxyz-1234567":
-        logger.error("❌ TOKEN no configurado en config.py")
+        logger.error("❌ TOKEN no configurado")
         return
     
     app = Application.builder().token(TOKEN).build()
     
-    # Registrar comandos
+    # ============================================================
+    # REGISTRO EXPLÍCITO DE COMANDOS - VERIFICAR CADA UNO
+    # ============================================================
+    logger.info("Registrando comandos...")
+    
     app.add_handler(CommandHandler("start", cmd_start))
+    logger.info("  ✓ /start registrado")
+    
     app.add_handler(CommandHandler("precio", cmd_precio))
-    app.add_handler(CommandHandler("comprar", cmd_comprar))
+    logger.info("  ✓ /precio registrado")
+    
+    app.add_handler(CommandHandler("comprar", cmd_comprar))  # <--- IMPORTANTE
+    logger.info("  ✓ /comprar registrado")
+    
     app.add_handler(CommandHandler("estado", cmd_estado))
+    logger.info("  ✓ /estado registrado")
+    
     app.add_handler(CommandHandler("confirmar", cmd_confirmar))
+    logger.info("  ✓ /confirmar registrado (admin)")
+    
     app.add_handler(CommandHandler("lista", cmd_listar_pagos))
+    logger.info("  ✓ /lista registrado (admin)")
     
     app.add_error_handler(error_handler)
     
-    logger.info("✅ Handlers registrados")
+    logger.info("✅ Todos los handlers registrados")
     logger.info("🔄 Conectando con Telegram...")
     
     try:
@@ -74,12 +80,12 @@ async def main():
         logger.info("✅ Bot conectado y funcionando!")
         logger.info("💡 Presiona Ctrl+C para detener")
         
+        # Mantener vivo
         while True:
             await asyncio.sleep(1)
             
     except Conflict:
         logger.critical("❌ Conflicto: Ya hay otra instancia del bot corriendo")
-        logger.info("Solución: Detén la otra instancia o genera un nuevo token")
     except Exception as e:
         logger.exception(f"❌ Error fatal: {e}")
         logger.info("Reintentando en 10 segundos...")
