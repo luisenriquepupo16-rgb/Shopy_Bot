@@ -3,8 +3,10 @@
 # CONFIGURACIÓN DEL BOT - CAMBIA SOLO LO QUE ESTÁ INDICADO
 # ============================================================
 
-# TOKEN de BotFather (CÁMBIALO por el tuyo)
-TOKEN = "8907545202:AAFH1we_J12zJhjDx1tCCZHddkLKT8x8naw" # <-- CAMBIA ESTO
+import os
+
+# TOKEN de BotFather (Leído desde la variable de entorno de Railway)
+TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "8907545202:AAFH1we_J12zJhjDx1tCCZHddkLKT8x8naw")
 
 # Tu ID de usuario de Telegram (CÁMBIALO por el tuyo)
 # Cómo obtenerlo: Habla con @userinfobot en Telegram, te enviará tu ID
