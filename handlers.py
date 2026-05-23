@@ -12,7 +12,10 @@ from config import (
     PRECIOS, NOMBRES_SCRIPTS, DESCRIPCIONES_SCRIPTS,
     WALLET_DIRECCION, MENSAJE_PAGO, MI_USER_ID
 )
-from database import cargar_db, guardar_pago, obtener_pago, actualizar_estado_pago
+from database import (
+    cargar_db, guardar_pago, obtener_pago, actualizar_estado_pago,
+    limite_compras_por_usuario  # <-- AGREGADO: importar la nueva función
+)
 
 # ============================================================
 # COMANDOS PÚBLICOS (cualquiera puede usarlos)
@@ -75,6 +78,19 @@ async def cmd_comprar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
     
+    # ============================================================
+    # NUEVO BLOQUE: VERIFICAR LÍMITE DE COMPRAS POR USUARIO
+    # ============================================================
+    if not limite_compras_por_usuario(user_id, limite=5):
+        await update.message.reply_text(
+            "❌ *Límite alcanzado*\n\n"
+            "Has superado el límite de 5 compras en las últimas 24 horas.\n"
+            "Por favor, espera antes de realizar nuevas compras.\n\n"
+            "Este límite es para proteger el sistema contra abusos.",
+            parse_mode="Markdown"
+        )
+        return
+    
     # Generar ID de pago único
     pago_id = f"{user_id}_{int(time.time())}"
     monto = PRECIOS[script_id]
@@ -89,7 +105,6 @@ async def cmd_comprar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     }
     
     if guardar_pago(pago_id, datos_pago):
-        # Mostrar instrucciones de pago
         mensaje_pago = MENSAJE_PAGO.format(
             direccion=WALLET_DIRECCION,
             pago_id=pago_id
@@ -172,7 +187,6 @@ async def cmd_confirmar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Confirma un pago y envía el script - SOLO ADMIN"""
     user_id = update.effective_user.id
     
-    # Verificar que sea el administrador
     if user_id != MI_USER_ID:
         await update.message.reply_text(
             "❌ *No autorizado.*\n\n"
@@ -214,7 +228,6 @@ async def cmd_confirmar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     script_id = pago["script_id"]
     comprador_id = pago["user_id"]
     
-    # Verificar que el archivo del script existe
     script_path = f"scripts/script_{script_id}.zip"
     
     if not os.path.exists(script_path):
@@ -226,7 +239,6 @@ async def cmd_confirmar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
     
-    # Enviar el script al comprador
     try:
         with open(script_path, 'rb') as f:
             await context.bot.send_document(
@@ -246,7 +258,6 @@ async def cmd_confirmar(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 parse_mode="Markdown"
             )
         
-        # Actualizar estado a "entregado"
         if actualizar_estado_pago(pago_id, "entregado"):
             await update.message.reply_text(
                 f"✅ *Script enviado correctamente*\n\n"

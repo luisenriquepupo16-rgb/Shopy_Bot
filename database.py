@@ -5,22 +5,21 @@
 
 import json
 import os
+import time  # <-- AGREGADO: necesario para obtener_compras_usuario_hoy
 
 DB_FILE = "db.json"
 
 def cargar_db():
     """Carga la base de datos desde el archivo JSON"""
     if not os.path.exists(DB_FILE):
-        # Base de datos inicial
         return {
-            "pagos_pendientes": {},      # pagos esperando confirmación
-            "entregados": []              # IDs de pagos ya entregados
+            "pagos_pendientes": {},
+            "entregados": []
         }
     try:
         with open(DB_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
     except (json.JSONDecodeError, IOError):
-        # Si el archivo está corrupto, empezar de nuevo
         return {"pagos_pendientes": {}, "entregados": []}
 
 def guardar_db(db):
@@ -60,3 +59,27 @@ def eliminar_pago(pago_id):
         del db["pagos_pendientes"][pago_id]
         return guardar_db(db)
     return False
+
+# ============================================================
+# NUEVAS FUNCIONES PARA LÍMITE DE COMPRAS
+# ============================================================
+
+def obtener_compras_usuario_hoy(user_id):
+    """Retorna cuántos scripts ha comprado un usuario en las últimas 24 horas"""
+    db = cargar_db()
+    ahora = time.time()
+    hace_24h = ahora - 86400
+    
+    compras_recientes = 0
+    for pago_id, datos in db["pagos_pendientes"].items():
+        if datos.get("user_id") == user_id and datos.get("estado") == "entregado":
+            fecha_compra = datos.get("fecha", 0)
+            if fecha_compra > hace_24h:
+                compras_recientes += 1
+    
+    return compras_recientes
+
+def limite_compras_por_usuario(user_id, limite=5):
+    """Verifica si el usuario ha superado el límite de compras diarias"""
+    compras_hoy = obtener_compras_usuario_hoy(user_id)
+    return compras_hoy < limite
