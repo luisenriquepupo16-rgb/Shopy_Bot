@@ -30,7 +30,6 @@ async def error_handler(update, context):
     error = context.error
     logger.error(f"Error: {error}")
     
-    # Si es error de conexión, no hacer nada (el bot reintentará solo)
     if isinstance(error, (TimedOut, NetworkError)):
         logger.warning("Error de red, reintentando...")
     elif isinstance(error, Conflict):
@@ -47,7 +46,6 @@ async def main():
         logger.error("❌ TOKEN no configurado en config.py")
         return
     
-    # Crear aplicación
     app = Application.builder().token(TOKEN).build()
     
     # Registrar comandos
@@ -58,19 +56,15 @@ async def main():
     app.add_handler(CommandHandler("confirmar", cmd_confirmar))
     app.add_handler(CommandHandler("lista", cmd_listar_pagos))
     
-    # Registrar manejador de errores global
     app.add_error_handler(error_handler)
     
     logger.info("✅ Handlers registrados")
     logger.info("🔄 Conectando con Telegram...")
     
-    # Iniciar polling con parámetros para red inestable
     try:
-        # Usar run_polling con timeout y read_timeout explícitos
         await app.initialize()
         await app.start()
         
-        # Iniciar polling con reintentos automáticos
         await app.updater.start_polling(
             poll_interval=1.0,
             timeout=10,
@@ -80,18 +74,16 @@ async def main():
         logger.info("✅ Bot conectado y funcionando!")
         logger.info("💡 Presiona Ctrl+C para detener")
         
-        # Mantener vivo
         while True:
             await asyncio.sleep(1)
             
     except Conflict:
-        logger.critical("❌ Conflicto: Ya hay otra instancia del bot corriendo con este token")
-        logger.info("Solución: Detén la otra instancia o genera un nuevo token en BotFather")
+        logger.critical("❌ Conflicto: Ya hay otra instancia del bot corriendo")
+        logger.info("Solución: Detén la otra instancia o genera un nuevo token")
     except Exception as e:
         logger.exception(f"❌ Error fatal: {e}")
         logger.info("Reintentando en 10 segundos...")
         await asyncio.sleep(10)
-        # Reintentar la conexión
         return await main()
 
 if __name__ == "__main__":
@@ -100,4 +92,4 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         logger.info("👋 Bot detenido manualmente")
     except Exception as e:
-        logger.error(f"Error en main: {e}")r...")
+        logger.error(f"Error en main: {e}")
