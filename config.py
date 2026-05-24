@@ -21,7 +21,7 @@ WALLET_DIRECCION = "TJmQHdTKygppAdoHJX4QWghSCqoKSqdYtN"
 
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
 GITHUB_REPO = "luisenriquepupo16-rgb/Shopy_Bot"
-RELEASE_TAG = "untagged-3866522ca4f8ac87ace6"  # <-- CORREGIDO con el tag real de tu release
+RELEASE_TAG = "v1.0.0"  # <-- CAMBIADO a v1.0.0 después de recrear la release
 
 # URLs de GitHub API
 GITHUB_API_RELEASES = f"https://api.github.com/repos/{GITHUB_REPO}/releases/tags/{RELEASE_TAG}"
@@ -62,11 +62,18 @@ def cargar_scripts_desde_github():
     
     try:
         # Obtener información de la release desde GitHub API
+        print(f"🔍 Buscando release: {GITHUB_REPO} / {RELEASE_TAG}")
         response = requests.get(GITHUB_API_RELEASES, headers=headers, timeout=10)
+        
+        print(f"📡 Respuesta GitHub API: HTTP {response.status_code}")
         
         if response.status_code == 200:
             release_data = response.json()
             assets = release_data.get("assets", [])
+            
+            print(f"📦 Assets encontrados: {len(assets)}")
+            for asset in assets:
+                print(f"   - {asset.get('name')}")
             
             # Buscar archivo de metadatos en los assets
             metadata_asset = None
@@ -78,6 +85,7 @@ def cargar_scripts_desde_github():
             if metadata_asset:
                 # Descargar metadata.json
                 metadata_url = metadata_asset.get("browser_download_url")
+                print(f"📥 Descargando metadata desde: {metadata_url}")
                 meta_response = requests.get(metadata_url, timeout=10)
                 
                 if meta_response.status_code == 200:
@@ -93,9 +101,13 @@ def cargar_scripts_desde_github():
                     usar_fallback(PRECIOS, NOMBRES_SCRIPTS, DESCRIPCIONES_SCRIPTS)
             else:
                 print("⚠️ No se encontró metadata.json en la release")
+                print("   Asegúrate de subir metadata.json con: gh release upload v1.0.0 metadata.json")
                 usar_fallback(PRECIOS, NOMBRES_SCRIPTS, DESCRIPCIONES_SCRIPTS)
         else:
             print(f"❌ Error accediendo a GitHub API: HTTP {response.status_code}")
+            if response.status_code == 404:
+                print(f"   La release '{RELEASE_TAG}' no existe en {GITHUB_REPO}")
+                print("   Créala con: gh release create v1.0.0 scripts/script_1.zip scripts/metadata.json")
             usar_fallback(PRECIOS, NOMBRES_SCRIPTS, DESCRIPCIONES_SCRIPTS)
             
     except Exception as e:
@@ -106,6 +118,7 @@ def cargar_scripts_desde_github():
 
 def usar_fallback(PRECIOS, NOMBRES_SCRIPTS, DESCRIPCIONES_SCRIPTS):
     """Fallback en caso de no poder acceder a GitHub"""
+    print("⚠️ Usando valores por defecto (fallback)")
     PRECIOS["1"] = 15
     NOMBRES_SCRIPTS["1"] = "CSV Cleaner Professional"
     DESCRIPCIONES_SCRIPTS["1"] = "Cleans CSV files professionally: auto-detects format, repairs broken rows, removes duplicates, preview, and logs."
@@ -122,9 +135,12 @@ def descargar_script_desde_github(script_id):
     if GITHUB_TOKEN:
         headers["Authorization"] = f"token {GITHUB_TOKEN}"
     
+    print(f"📥 Descargando script {script_id} desde: {download_url}")
+    
     try:
         response = requests.get(download_url, headers=headers, timeout=30)
         if response.status_code == 200:
+            print(f"✅ Script {script_id} descargado exitosamente ({len(response.content)} bytes)")
             return response.content
         else:
             print(f"❌ Error descargando script {script_id}: HTTP {response.status_code}")
@@ -134,4 +150,5 @@ def descargar_script_desde_github(script_id):
         return None
 
 # Cargar scripts automáticamente al iniciar
+print("🔄 Iniciando carga de scripts desde GitHub...")
 PRECIOS, NOMBRES_SCRIPTS, DESCRIPCIONES_SCRIPTS = cargar_scripts_desde_github()
