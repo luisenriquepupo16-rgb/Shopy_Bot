@@ -1,13 +1,13 @@
 # bot.py
 # ============================================================
-# PUNTO DE ENTRADA PRINCIPAL - VERSION 1.2 CON NOTIFICACIÓN AL ADMIN
+# PUNTO DE ENTRADA PRINCIPAL - VERSIÓN 2.0 CON IDIOMAS
 # ============================================================
 
 import sys
 import os
 import asyncio
 import logging
-import time  # <-- AGREGADO para la notificación
+import time
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -19,11 +19,10 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from telegram.ext import Application, CommandHandler
 from telegram.error import TimedOut, NetworkError, Conflict
-from config import TOKEN, MI_USER_ID  # <-- AGREGADO MI_USER_ID
+from config import TOKEN, MI_USER_ID
 from handlers import (
-    cmd_start, cmd_precio, cmd_comprar, cmd_estado,
-    cmd_confirmar, cmd_listar_pagos
-    # NOTA: cmd_logs NO está incluido (por ahora)
+    cmd_start, cmd_price, cmd_buy, cmd_status,
+    cmd_confirm, cmd_list, cmd_language, verificar_pagos_automaticos
 )
 
 async def error_handler(update, context):
@@ -41,28 +40,28 @@ async def main():
     
     app = Application.builder().token(TOKEN).build()
     
-    # ============================================================
-    # REGISTRO EXPLÍCITO DE COMANDOS
-    # ============================================================
     logger.info("Registrando comandos...")
     
     app.add_handler(CommandHandler("start", cmd_start))
     logger.info("  ✓ /start registrado")
     
-    app.add_handler(CommandHandler("precio", cmd_precio))
-    logger.info("  ✓ /precio registrado")
+    app.add_handler(CommandHandler("price", cmd_price))
+    logger.info("  ✓ /price registrado")
     
-    app.add_handler(CommandHandler("comprar", cmd_comprar))
-    logger.info("  ✓ /comprar registrado")
+    app.add_handler(CommandHandler("buy", cmd_buy))
+    logger.info("  ✓ /buy registrado")
     
-    app.add_handler(CommandHandler("estado", cmd_estado))
-    logger.info("  ✓ /estado registrado")
+    app.add_handler(CommandHandler("status", cmd_status))
+    logger.info("  ✓ /status registrado")
     
-    app.add_handler(CommandHandler("confirmar", cmd_confirmar))
-    logger.info("  ✓ /confirmar registrado (admin)")
+    app.add_handler(CommandHandler("confirm", cmd_confirm))
+    logger.info("  ✓ /confirm registrado (admin)")
     
-    app.add_handler(CommandHandler("lista", cmd_listar_pagos))
-    logger.info("  ✓ /lista registrado (admin)")
+    app.add_handler(CommandHandler("list", cmd_list))
+    logger.info("  ✓ /list registrado (admin)")
+    
+    app.add_handler(CommandHandler("language", cmd_language))
+    logger.info("  ✓ /language registrado")
     
     app.add_error_handler(error_handler)
     
@@ -81,9 +80,15 @@ async def main():
         
         logger.info("✅ Bot conectado y funcionando!")
         
-        # ============================================================
-        # NOTIFICACIÓN DE INICIO AL ADMIN (TIP #008)
-        # ============================================================
+        # Tarea periódica: verificar pagos cada 30 segundos
+        job_queue = app.job_queue
+        if job_queue:
+            job_queue.run_repeating(verificar_pagos_automaticos, interval=30, first=10)
+            logger.info("🔄 Verificación automática de pagos activada (cada 30 segundos)")
+        else:
+            logger.warning("⚠️ JobQueue no disponible - verificación automática desactivada")
+        
+        # Notificación de inicio al admin
         try:
             await app.bot.send_message(
                 chat_id=MI_USER_ID,
@@ -92,7 +97,9 @@ async def main():
                     "🔌 Conectado a Telegram\n"
                     "📍 Railway activo\n"
                     f"📅 {time.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-                    "🟢 Listo para recibir comandos."
+                    "🟢 Listo para recibir comandos.\n"
+                    "🔄 Verificación automática de pagos: ACTIVADA\n"
+                    "🌐 Idioma por defecto: Inglés (usa /language para Español)"
                 ),
                 parse_mode="Markdown"
             )
@@ -102,7 +109,6 @@ async def main():
         
         logger.info("💡 Presiona Ctrl+C para detener")
         
-        # Mantener vivo
         while True:
             await asyncio.sleep(1)
             

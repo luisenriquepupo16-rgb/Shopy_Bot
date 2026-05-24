@@ -1,50 +1,58 @@
 # config.py
 # ============================================================
-# CONFIGURACIÓN DEL BOT - CAMBIA SOLO LO QUE ESTÁ INDICADO
+# CONFIGURACIÓN DEL BOT - VERSIÓN ESTABLE
 # ============================================================
 
 import os
+import json
 
-# TOKEN de BotFather (Leído desde la variable de entorno de Railway)
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "8907545202:AAFH1we_J12zJhjDx1tCCZHddkLKT8x8naw")
+MI_USER_ID = 6985343427
+WALLET_DIRECCION = "   TJmQHdTKygppAdoHJX4QWghSCqoKSqdYtN"  
 
-# Tu ID de usuario de Telegram (CÁMBIALO por el tuyo)
-# Cómo obtenerlo: Habla con @userinfobot en Telegram, te enviará tu ID
-MI_USER_ID = 6985343427  # <-- CAMBIA ESTO
-
-# Precios de los scripts (en USDT)
-# Formato: "ID_del_script": precio
-PRECIOS = {
-    "1": 10,   # Descargador de YouTube MP3
-    "2": 15,   # Limpiador de CSV
-    "3": 8,    # Monitor de precios cripto
-}
-
-# Nombres descriptivos de los scripts (para mostrar en /precio)
-NOMBRES_SCRIPTS = {
-    "1": "🎵 Descargador de YouTube MP3",
-    "2": "🧹 Limpiador de CSV",
-    "3": "📊 Monitor de precios cripto",
-}
-
-DESCRIPCIONES_SCRIPTS = {
-    "1": "Convierte videos de YouTube a MP3 por línea de comandos. Sin interfaz gráfica, ideal para automatización.",
-    "2": "Limpia y normaliza archivos CSV duplicados o con errores. Funciona desde terminal.",
-    "3": "Monitorea precios de 10+ criptomonedas en tiempo real desde la consola.",
-}
-
-# Tu dirección de wallet USDT (TRC-20) - Cámbiala por la tuya
-WALLET_DIRECCION = "TU_DIRECCION_USDT_TRC20_AQUI"  # <-- CAMBIA ESTO
-
-# Mensaje que se muestra al comprar (instrucciones de pago)
 MENSAJE_PAGO = """
-💰 *Instrucciones de pago:*
+💰 Payment Instructions:
 
-1. Abre tu wallet que soporte USDT (TronLink, Binance, etc.)
-2. Envía el monto exacto a esta dirección:
+1. Open your USDT wallet (TronLink, Trust Wallet, Binance, etc.)
+2. Send exact amount to this address:
    `{direccion}`
-3. Usa la red *TRC-20* (importante, no uses otra red)
-4. Una vez enviado, usa /estado {pago_id} para verificar
+3. Use *TRC-20* network (important, do not use other networks)
+4. After sending, use /status {pago_id} to verify
 
-⚠️ El script se enviará automáticamente cuando confirme el pago manualmente.
+⚠️ Script will be sent after manual confirmation.
 """
+
+def cargar_scripts_desde_carpeta():
+    metadata_path = "scripts/metadata.json"
+    PRECIOS = {}
+    NOMBRES_SCRIPTS = {}
+    DESCRIPCIONES_SCRIPTS = {}
+    
+    if not os.path.exists(metadata_path):
+        os.makedirs("scripts", exist_ok=True)
+        ejemplo_metadata = {
+            "1": {
+                "nombre": "CSV Cleaner Professional",
+                "descripcion": "Cleans CSV files professionally: auto-detects format, repairs broken rows, removes duplicates, preview, and logs. Compatible with large files.",
+                "precio": 15
+            }
+        }
+        with open(metadata_path, "w", encoding="utf-8") as f:
+            json.dump(ejemplo_metadata, f, indent=2, ensure_ascii=False)
+    
+    try:
+        with open(metadata_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            for script_id, info in data.items():
+                PRECIOS[script_id] = info.get("precio", 15)
+                NOMBRES_SCRIPTS[script_id] = info.get("nombre", f"Script {script_id}")
+                DESCRIPCIONES_SCRIPTS[script_id] = info.get("descripcion", "No description")
+    except Exception as e:
+        print(f"Error loading metadata: {e}")
+        PRECIOS = {"1": 15}
+        NOMBRES_SCRIPTS = {"1": "CSV Cleaner Professional"}
+        DESCRIPCIONES_SCRIPTS = {"1": "Cleans CSV files professionally"}
+    
+    return PRECIOS, NOMBRES_SCRIPTS, DESCRIPCIONES_SCRIPTS
+
+PRECIOS, NOMBRES_SCRIPTS, DESCRIPCIONES_SCRIPTS = cargar_scripts_desde_carpeta()

@@ -5,7 +5,8 @@
 
 import json
 import os
-import time  # <-- AGREGADO: necesario para obtener_compras_usuario_hoy
+import time
+import requests
 
 DB_FILE = "db.json"
 
@@ -14,13 +15,14 @@ def cargar_db():
     if not os.path.exists(DB_FILE):
         return {
             "pagos_pendientes": {},
-            "entregados": []
+            "entregados": [],
+            "idiomas": {}
         }
     try:
         with open(DB_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
     except (json.JSONDecodeError, IOError):
-        return {"pagos_pendientes": {}, "entregados": []}
+        return {"pagos_pendientes": {}, "entregados": [], "idiomas": {}}
 
 def guardar_db(db):
     """Guarda la base de datos en el archivo JSON"""
@@ -61,7 +63,7 @@ def eliminar_pago(pago_id):
     return False
 
 # ============================================================
-# NUEVAS FUNCIONES PARA LÍMITE DE COMPRAS
+# FUNCIONES PARA LÍMITE DE COMPRAS
 # ============================================================
 
 def obtener_compras_usuario_hoy(user_id):
@@ -83,3 +85,68 @@ def limite_compras_por_usuario(user_id, limite=5):
     """Verifica si el usuario ha superado el límite de compras diarias"""
     compras_hoy = obtener_compras_usuario_hoy(user_id)
     return compras_hoy < limite
+
+def usuario_ha_bloqueado_al_bot(user_id):
+    """Verifica si el usuario ha bloqueado al bot (por ahora simulado)"""
+    return False
+
+# ============================================================
+# FUNCIONES PARA IDIOMA DEL USUARIO
+# ============================================================
+
+def obtener_idioma_usuario(user_id):
+    """Retorna el idioma preferido del usuario ('en' o 'es'). Por defecto 'en'"""
+    db = cargar_db()
+    idiomas = db.get("idiomas", {})
+    return idiomas.get(str(user_id), "en")
+
+def guardar_idioma_usuario(user_id, idioma):
+    """Guarda la preferencia de idioma del usuario"""
+    db = cargar_db()
+    if "idiomas" not in db:
+        db["idiomas"] = {}
+    db["idiomas"][str(user_id)] = idioma
+    return guardar_db(db)
+
+# ============================================================
+# FUNCIONES PARA VERIFICACIÓN DE PAGOS EN BLOCKCHAIN
+# ============================================================
+
+def verificar_pago_usdt_trc20(direccion_wallet, monto_esperado, timeout_minutos=30):
+    """
+    Verifica si se ha recibido un pago USDT en la red TRC-20
+    Usa la API pública de TronGrid (gratuita, sin API key)
+    """
+    url = f"https://api.trongrid.io/v1/accounts/{direccion_wallet}/transactions/trc20"
+    
+    tiempo_limite = int((time.time() - (timeout_minutos * 60)) * 1000)
+    
+    params = {
+        "limit": 50,
+        "only_confirmed": True,
+        "min_timestamp": tiempo_limite
+    }
+    
+    try:
+        response = requests.get(url, params=params, timeout=10)
+        datos = response.json()
+        
+        if "data" not in datos:
+            return None
+        
+        for tx in datos["data"]:
+            if tx.get("token_info", {}).get("symbol") == "USDT":
+                monto_recibido = int(tx.get("value", 0)) / 10**6
+                
+                if abs(monto_recibido - monto_esperado) < 0.01:
+                    if tx.get("to", "").lower() == direccion_wallet.lower():
+                        return {
+                            "tx_id": tx.get("transaction_id"),
+                            "monto": monto_recibido,
+                            "from": tx.get("from"),
+                            "timestamp": tx.get("block_timestamp")
+                        }
+        return None
+    except Exception as e:
+        print(f"Error verificando pago: {e}")
+        return None
