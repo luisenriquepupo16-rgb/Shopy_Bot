@@ -21,7 +21,7 @@ WALLET_DIRECCION = "TJmQHdTKygppAdoHJX4QWghSCqoKSqdYtN"
 
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
 GITHUB_REPO = "luisenriquepupo16-rgb/Shopy_Bot"
-RELEASE_TAG = "v1.0.0"  # <-- CAMBIADO a v1.0.0 después de recrear la release
+RELEASE_TAG = "v1.0.0"  # <-- AHORA USA v1.0.0
 
 # URLs de GitHub API
 GITHUB_API_RELEASES = f"https://api.github.com/repos/{GITHUB_REPO}/releases/tags/{RELEASE_TAG}"
@@ -101,13 +101,11 @@ def cargar_scripts_desde_github():
                     usar_fallback(PRECIOS, NOMBRES_SCRIPTS, DESCRIPCIONES_SCRIPTS)
             else:
                 print("⚠️ No se encontró metadata.json en la release")
-                print("   Asegúrate de subir metadata.json con: gh release upload v1.0.0 metadata.json")
                 usar_fallback(PRECIOS, NOMBRES_SCRIPTS, DESCRIPCIONES_SCRIPTS)
         else:
             print(f"❌ Error accediendo a GitHub API: HTTP {response.status_code}")
             if response.status_code == 404:
                 print(f"   La release '{RELEASE_TAG}' no existe en {GITHUB_REPO}")
-                print("   Créala con: gh release create v1.0.0 scripts/script_1.zip scripts/metadata.json")
             usar_fallback(PRECIOS, NOMBRES_SCRIPTS, DESCRIPCIONES_SCRIPTS)
             
     except Exception as e:

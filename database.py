@@ -7,8 +7,10 @@ import json
 import os
 import time
 import requests
+from datetime import datetime
 
 DB_FILE = "db.json"
+ERROR_LOG_FILE = "errores.log"
 
 def cargar_db():
     """Carga la base de datos desde el archivo JSON"""
@@ -109,6 +111,39 @@ def guardar_idioma_usuario(user_id, idioma):
     return guardar_db(db)
 
 # ============================================================
+# FUNCIONES PARA LOG DE ERRORES
+# ============================================================
+
+def registrar_error(mensaje, contexto=""):
+    """
+    Registra un error en el archivo errores.log
+    """
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    try:
+        with open(ERROR_LOG_FILE, "a", encoding="utf-8") as f:
+            f.write(f"[{timestamp}] ERROR: {mensaje}\n")
+            if contexto:
+                f.write(f"    Contexto: {contexto}\n")
+            f.write("-" * 50 + "\n")
+    except:
+        pass  # Si falla el log, no detener el programa
+
+def obtener_ultimos_errores(num_lineas=50):
+    """
+    Retorna las últimas N líneas del archivo de errores
+    """
+    if not os.path.exists(ERROR_LOG_FILE):
+        return "No hay errores registrados."
+    
+    try:
+        with open(ERROR_LOG_FILE, "r", encoding="utf-8") as f:
+            lineas = f.readlines()
+            ultimas = lineas[-num_lineas:] if len(lineas) > num_lineas else lineas
+            return ''.join(ultimas)
+    except Exception as e:
+        return f"Error al leer el archivo de logs: {e}"
+
+# ============================================================
 # FUNCIONES PARA VERIFICACIÓN DE PAGOS EN BLOCKCHAIN
 # ============================================================
 
@@ -148,5 +183,76 @@ def verificar_pago_usdt_trc20(direccion_wallet, monto_esperado, timeout_minutos=
                         }
         return None
     except Exception as e:
-        print(f"Error verificando pago: {e}")
+        registrar_error(f"Error verificando pago en blockchain", f"URL: {url} | Error: {e}")
         return None
+
+# ============================================================
+# FUNCIONES PARA ESTADÍSTICAS
+# ============================================================
+
+def obtener_estadisticas():
+    """
+    Calcula estadísticas del bot:
+    - Total de compras
+    - Total ganado en USDT
+    - Scripts más vendidos
+    """
+    db = cargar_db()
+    
+    total_compras = 0
+    total_ganado = 0.0
+    ventas_por_script = {}
+    
+    for pago_id, datos in db["pagos_pendientes"].items():
+        if datos.get("estado") == "entregado":
+            total_compras += 1
+            monto = datos.get("monto", 0)
+            total_ganado += monto
+            
+            script_id = datos.get("script_id", "unknown")
+            if script_id not in ventas_por_script:
+                ventas_por_script[script_id] = 0
+            ventas_por_script[script_id] += 1
+    
+    # Ordenar scripts por ventas (mayor a menor)
+    scripts_ordenados = sorted(ventas_por_script.items(), key=lambda x: x[1], reverse=True)
+    
+    return {
+        "total_compras": total_compras,
+        "total_ganado": total_ganado,
+        "ventas_por_script": ventas_por_script,
+        "scripts_ordenados": scripts_ordenados
+    }
+
+# ============================================================
+# LIMPIEZA DE PAGOS VIEJOS
+# ============================================================
+
+def limpiar_pagos_viejos(dias_limite=30):
+    """
+    Elimina pagos pendientes con más de 'dias_limite' días de antigüedad.
+    Retorna la cantidad de pagos eliminados.
+    """
+    db = cargar_db()
+    ahora = time.time()
+    limite_segundos = dias_limite * 86400
+    
+    pagos_a_eliminar = []
+    
+    for pago_id, datos in db["pagos_pendientes"].items():
+        if datos.get("estado") == "pendiente":
+            fecha_pago = datos.get("fecha", 0)
+            antiguedad = ahora - fecha_pago
+            
+            if antiguedad > limite_segundos:
+                pagos_a_eliminar.append(pago_id)
+    
+    for pago_id in pagos_a_eliminar:
+        del db["pagos_pendientes"][pago_id]
+        # Usar print en lugar de logger (database.py no tiene logger configurado)
+        print(f"Pago viejo eliminado: {pago_id} (antigüedad > {dias_limite} días)")
+    
+    if pagos_a_eliminar:
+        guardar_db(db)
+    
+    return len(pagos_a_eliminar)
