@@ -1,19 +1,19 @@
 # handlers.py
 # ============================================================
-# MANEJADORES DE COMANDOS DEL BOT - VERSIÓN 2.0 CON IDIOMAS
-# Inglés por defecto. Comando /language para cambiar a español
+# MANEJADORES DE COMANDOS DEL BOT - VERSIÓN CON GITHUB RELEASES
 # ============================================================
 
 import time
 import os
 import logging
-import asyncio
+import io
 from telegram import Update
 from telegram.ext import ContextTypes
 
 from config import (
     PRECIOS, NOMBRES_SCRIPTS, DESCRIPCIONES_SCRIPTS,
-    WALLET_DIRECCION, MENSAJE_PAGO, MI_USER_ID
+    WALLET_DIRECCION, MENSAJE_PAGO, MI_USER_ID,
+    descargar_script_desde_github
 )
 from database import (
     cargar_db, guardar_pago, obtener_pago, actualizar_estado_pago,
@@ -39,7 +39,6 @@ TEXTOS = {
             "/language - Change language (Español/English)\n\n"
             "⚠️ *No customer support.* This bot is fully automated."
         ),
-        "welcome_back": "👋 Welcome back!",
         "price_title": "📋 *Available scripts:*\n\n",
         "price_buy": "\nTo buy: /buy [ID]\nExample: /buy 1",
         "price_id": "ID: {script_id} - {nombre}\n   └ {desc}\n   └ Price: {precio} USDT (TRC-20)\n",
@@ -67,7 +66,7 @@ TEXTOS = {
         "confirm_usage": "📌 *Usage:* /confirm [payment_ID]\n\nExample: /confirm 123456789_1732123456",
         "confirm_not_found": "❌ *Error:* Payment `{pago_id}` not found.",
         "confirm_already_processed": "⚠️ This payment was already processed. Status: {estado}",
-        "confirm_file_not_found": "❌ *Error:* Script file not found at {path}",
+        "confirm_file_not_found": "❌ *Error:* Script file not found in GitHub Release",
         "confirm_sent": "✅ Script sent successfully to {comprador_id}",
         "confirm_db_error": "⚠️ Script sent but database not updated",
         "confirm_send_error": "❌ *Error sending:* {error}",
@@ -91,7 +90,6 @@ TEXTOS = {
             "/language - Cambiar idioma (Español/English)\n\n"
             "⚠️ *No hay atención al cliente.* Este bot es completamente automático."
         ),
-        "welcome_back": "👋 ¡Bienvenido de nuevo!",
         "price_title": "📋 *Scripts disponibles:*\n\n",
         "price_buy": "\nPara comprar: /buy [ID]\nEjemplo: /buy 1",
         "price_id": "ID: {script_id} - {nombre}\n   └ {desc}\n   └ Precio: {precio} USDT (TRC-20)\n",
@@ -119,7 +117,7 @@ TEXTOS = {
         "confirm_usage": "📌 *Uso:* /confirm [ID_pago]\n\nEjemplo: /confirm 123456789_1732123456",
         "confirm_not_found": "❌ *Error:* No se encontró el pago `{pago_id}`.",
         "confirm_already_processed": "⚠️ Este pago ya fue procesado. Estado: {estado}",
-        "confirm_file_not_found": "❌ *Error:* No se encuentra el archivo del script en {path}",
+        "confirm_file_not_found": "❌ *Error:* No se encontró el archivo del script en GitHub Release",
         "confirm_sent": "✅ Script enviado correctamente a {comprador_id}",
         "confirm_db_error": "⚠️ Script enviado pero no se actualizó la base de datos",
         "confirm_send_error": "❌ *Error al enviar:* {error}",
@@ -271,10 +269,6 @@ async def cmd_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await update.message.reply_text(text, parse_mode="Markdown")
 
-# ============================================================
-# COMANDO PARA CAMBIAR IDIOMA
-# ============================================================
-
 async def cmd_language(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     lang_actual = obtener_idioma_usuario(user_id)
@@ -322,21 +316,23 @@ async def cmd_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     script_id = pago["script_id"]
     comprador_id = pago["user_id"]
-    script_path = f"scripts/script_{script_id}.zip"
     
-    if not os.path.exists(script_path):
-        text = get_text(user_id, "confirm_file_not_found", path=script_path)
+    # Descargar script desde GitHub Releases
+    script_content = descargar_script_desde_github(script_id)
+    
+    if not script_content:
+        text = get_text(user_id, "confirm_file_not_found")
         await update.message.reply_text(text, parse_mode="Markdown")
         return
     
     try:
-        with open(script_path, 'rb') as f:
-            await context.bot.send_document(
-                chat_id=comprador_id,
-                document=f,
-                filename=f"script_{script_id}.zip",
-                caption=f"🎉 Thank you for your purchase!\n\nScript: {NOMBRES_SCRIPTS.get(script_id, 'Unknown')}\n\nNo support included."
-            )
+        # Enviar el script como archivo desde memoria (sin guardar en disco)
+        await context.bot.send_document(
+            chat_id=comprador_id,
+            document=io.BytesIO(script_content),
+            filename=f"script_{script_id}.zip",
+            caption=f"🎉 Thank you for your purchase!\n\nScript: {NOMBRES_SCRIPTS.get(script_id, 'Unknown')}\n\nNo support included."
+        )
         
         if actualizar_estado_pago(pago_id, "entregado"):
             text = get_text(user_id, "confirm_sent", comprador_id=comprador_id)
@@ -395,7 +391,6 @@ async def verificar_pagos_automaticos(context: ContextTypes.DEFAULT_TYPE):
         if pago:
             actualizar_estado_pago(pago_id, "pagado")
             
-            # Obtener texto en el idioma del admin (inglés por defecto para notificaciones)
             text = TEXTOS["en"]["payment_detected"].format(
                 pago_id=pago_id,
                 monto=monto,
