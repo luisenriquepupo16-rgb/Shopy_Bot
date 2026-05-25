@@ -11,7 +11,7 @@ from config import (
 )
 from database import (
     cargar_db, obtener_pago, actualizar_estado_pago,
-    obtener_ultimos_errores, guardar_backup_en_gist
+    obtener_ultimos_errores, guardar_backup_en_gist, obtener_estadisticas
 )
 from .textos import get_text
 
@@ -110,12 +110,12 @@ async def cmd_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     mensaje = get_text(user_id, "list_title")
     for pago_id, datos in pagos_pendientes.items():
-        if datos["estado"] == "pendiente":
+        if datos.get("estado") == "pendiente":
             mensaje += get_text(user_id, "list_item",
                                pago_id=pago_id,
-                               script_id=datos["script_id"],
-                               monto=datos["monto"],
-                               user_id=datos["user_id"])
+                               script_id=datos.get("script_id", "?"),
+                               monto=datos.get("monto", 0),
+                               user_id=datos.get("user_id", "?"))
     
     mensaje += get_text(user_id, "list_footer")
     await update.message.reply_text(mensaje, parse_mode=None)
@@ -127,28 +127,33 @@ async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Not authorized.", parse_mode=None)
         return
     
-    from database import obtener_estadisticas
-    
     stats = obtener_estadisticas()
     
     total_compras = stats["total_compras"]
     total_ganado = stats["total_ganado"]
     scripts_ordenados = stats["scripts_ordenados"]
     
-    mensaje = "📊 BOT STATISTICS\n\n"
-    mensaje += f"💰 Total earned: {total_ganado:.2f} USDT\n"
-    mensaje += f"📦 Total purchases: {total_compras}\n"
-    mensaje += f"⭐ Average per sale: {total_ganado/total_compras if total_compras > 0 else 0:.2f} USDT\n\n"
+    # Construir mensaje usando get_text() para respetar el idioma
+    mensaje = get_text(user_id, "stats_title")
+    mensaje += get_text(user_id, "stats_earned", total_ganado=total_ganado)
+    mensaje += get_text(user_id, "stats_purchases", total_compras=total_compras)
+    promedio = total_ganado / total_compras if total_compras > 0 else 0
+    mensaje += get_text(user_id, "stats_average", promedio=promedio)
+    mensaje += "\n"
+    mensaje += get_text(user_id, "stats_top_title")
     
-    mensaje += "📋 Top scripts:\n"
     if scripts_ordenados:
         for script_id, cantidad in scripts_ordenados:
             nombre = NOMBRES_SCRIPTS.get(script_id, f"Script {script_id}")
-            mensaje += f"   {script_id}. {nombre}: {cantidad} sale(s)\n"
+            mensaje += get_text(user_id, "stats_top_item",
+                               script_id=script_id,
+                               nombre=nombre,
+                               cantidad=cantidad)
     else:
-        mensaje += "   No sales recorded yet.\n"
+        mensaje += get_text(user_id, "stats_no_sales")
     
-    mensaje += "\n🟢 Status: Active on Railway"
+    mensaje += get_text(user_id, "stats_status")
+    
     await update.message.reply_text(mensaje, parse_mode=None)
 
 async def cmd_errores(update: Update, context: ContextTypes.DEFAULT_TYPE):

@@ -56,7 +56,18 @@ TEXTOS = {
         "errors_title": "📋 Last errors registered:\n\n",
         "save_db_start": "💾 Saving database backup...",
         "save_db_success": "✅ Backup saved successfully!\n\nDatabase has been backed up to GitHub Gist.\nIt will be restored automatically on next restart.",
-        "save_db_error": "❌ Error saving backup\n\nCheck that BACKUP_GIST_ID and GITHUB_TOKEN are configured."
+        "save_db_error": "❌ Error saving backup\n\nCheck that BACKUP_GIST_ID and GITHUB_TOKEN are configured.",
+        # ============================================================
+        # ESTADÍSTICAS (STATS)
+        # ============================================================
+        "stats_title": "📊 BOT STATISTICS\n\n",
+        "stats_earned": "💰 Total earned: {total_ganado:.2f} USDT\n",
+        "stats_purchases": "📦 Total purchases: {total_compras}\n",
+        "stats_average": "⭐ Average per sale: {promedio:.2f} USDT\n\n",
+        "stats_top_title": "📋 Top scripts:\n",
+        "stats_top_item": "   {script_id}. {nombre}: {cantidad} sale(s)\n",
+        "stats_no_sales": "   No sales recorded yet.\n",
+        "stats_status": "\n🟢 Status: Active on Railway"
     },
     "es": {
         "start": (
@@ -112,7 +123,18 @@ TEXTOS = {
         "errors_title": "📋 Últimos errores registrados:\n\n",
         "save_db_start": "💾 Guardando respaldo de la base de datos...",
         "save_db_success": "✅ Respaldo guardado exitosamente!\n\nLa base de datos ha sido respaldada en GitHub Gist.\nSe restaurará automáticamente al reiniciar el bot.",
-        "save_db_error": "❌ Error guardando respaldo\n\nVerifica que BACKUP_GIST_ID y GITHUB_TOKEN estén configurados."
+        "save_db_error": "❌ Error guardando respaldo\n\nVerifica que BACKUP_GIST_ID y GITHUB_TOKEN estén configurados.",
+        # ============================================================
+        # ESTADÍSTICAS (STATS)
+        # ============================================================
+        "stats_title": "📊 ESTADÍSTICAS DEL BOT\n\n",
+        "stats_earned": "💰 Total ganado: {total_ganado:.2f} USDT\n",
+        "stats_purchases": "📦 Total compras: {total_compras}\n",
+        "stats_average": "⭐ Promedio por venta: {promedio:.2f} USDT\n\n",
+        "stats_top_title": "📋 Scripts más vendidos:\n",
+        "stats_top_item": "   {script_id}. {nombre}: {cantidad} venta(s)\n",
+        "stats_no_sales": "   No hay ventas registradas aún.\n",
+        "stats_status": "\n🟢 Estado: Activo en Railway"
     }
 }
 
