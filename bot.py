@@ -25,7 +25,7 @@ from handlers import (
     cmd_confirm, cmd_list, cmd_stats, cmd_errores, cmd_save_db, cmd_admin,
     verificar_pagos_automaticos
 )
-from database import registrar_error, limpiar_pagos_viejos, cargar_backup_desde_gist
+from database import registrar_error, limpiar_pagos_viejos, cargar_backup_desde_gist, guardar_db
 
 async def error_handler(update, context):
     """Manejador global de errores del bot"""
@@ -79,7 +79,6 @@ async def generar_checklist_inicio():
     try:
         from config import GITHUB_RAW_CONTENT
         import requests
-        # Verificar que el script_1.zip existe en la release
         script_url = f"{GITHUB_RAW_CONTENT}/script_1.zip"
         response = requests.head(script_url, timeout=10)
         if response.status_code == 200:
@@ -89,23 +88,29 @@ async def generar_checklist_inicio():
     except Exception as e:
         resultados.append(("📥 Scripts disponibles en GitHub", "WARNING", f"Error de conexión: {str(e)[:40]}"))
     
-    # 4. Carga de backup desde GitHub Gist
+    # 4. Carga de backup desde GitHub Gist y RESTAURACIÓN
     try:
         backup_data = cargar_backup_desde_gist()
         if backup_data:
+            # IMPORTANTE: Restaurar los datos en db.json
+            guardar_db(backup_data)
             pagos_count = len(backup_data.get("pagos_pendientes", {}))
-            resultados.append(("💾 Carga de backup desde Gist", "CLEAR", f"{pagos_count} pagos restaurados"))
+            resultados.append(("💾 Carga de backup desde Gist", "CLEAR", f"{pagos_count} pagos restaurados en db.json"))
+            logger.info(f"Backup restaurado: {pagos_count} pagos cargados en db.json")
         else:
             resultados.append(("💾 Carga de backup desde Gist", "INFO", "No se encontró backup previo"))
     except Exception as e:
         resultados.append(("💾 Carga de backup desde Gist", "FAIL", str(e)[:50]))
     
-    # 5. Base de datos local
+    # 5. Base de datos local (verificar que los datos están cargados)
     try:
         from database import cargar_db
         db = cargar_db()
         pagos_count = len(db.get("pagos_pendientes", {}))
-        resultados.append(("🗄️ Base de datos local", "CLEAR", f"{pagos_count} pagos en memoria"))
+        # Verificar también el idioma guardado
+        idiomas = db.get("idiomas", {})
+        idioma_admin = idiomas.get(str(MI_USER_ID), "no configurado")
+        resultados.append(("🗄️ Base de datos local", "CLEAR", f"{pagos_count} pagos en memoria | Idioma admin: {idioma_admin}"))
     except Exception as e:
         resultados.append(("🗄️ Base de datos local", "FAIL", str(e)[:50]))
     

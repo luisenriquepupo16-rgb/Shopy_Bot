@@ -103,6 +103,9 @@ async def cmd_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     db = cargar_db()
     pagos_pendientes = db.get("pagos_pendientes", {})
     
+    # Log para depuración
+    logger.info(f"cmd_list - Pagos pendientes encontrados: {len(pagos_pendientes)}")
+    
     if not pagos_pendientes:
         text = get_text(user_id, "list_empty")
         await update.message.reply_text(text, parse_mode=None)
@@ -111,6 +114,8 @@ async def cmd_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     mensaje = get_text(user_id, "list_title")
     for pago_id, datos in pagos_pendientes.items():
         if datos.get("estado") == "pendiente":
+            # IMPORTANTE: NO pasar user_id en kwargs porque ya se pasó como argumento
+            # El error get_text() got multiple values for argument 'user_id' ocurre si se pasa user_id aquí
             mensaje += get_text(user_id, "list_item",
                                pago_id=pago_id,
                                script_id=datos.get("script_id", "?"),
@@ -188,6 +193,9 @@ async def cmd_save_db(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(get_text(user_id, "save_db_start"), parse_mode=None)
     
     db = cargar_db()
+    
+    # Log para depuración
+    logger.info(f"cmd_save_db - Pagos pendientes: {len(db.get('pagos_pendientes', {}))}")
     
     if guardar_backup_en_gist(db):
         await update.message.reply_text(
