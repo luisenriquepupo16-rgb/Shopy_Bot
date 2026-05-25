@@ -22,13 +22,13 @@ async def cmd_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if user_id != MI_USER_ID:
         text = get_text(user_id, "confirm_not_authorized")
-        await update.message.reply_text(text)
+        await update.message.reply_text(text, parse_mode=None)
         return
     
     args = context.args
     if not args:
         text = get_text(user_id, "confirm_usage")
-        await update.message.reply_text(text, parse_mode="Markdown")
+        await update.message.reply_text(text, parse_mode=None)
         return
     
     pago_id = args[0]
@@ -36,24 +36,24 @@ async def cmd_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if not pago:
         text = get_text(user_id, "confirm_not_found", pago_id=pago_id)
-        await update.message.reply_text(text, parse_mode="Markdown")
+        await update.message.reply_text(text, parse_mode=None)
         return
     
     if pago["estado"] != "pendiente" and pago["estado"] != "pagado":
         text = get_text(user_id, "confirm_already_processed", estado=pago["estado"])
-        await update.message.reply_text(text, parse_mode="Markdown")
+        await update.message.reply_text(text, parse_mode=None)
         return
     
     script_id = pago["script_id"]
     comprador_id = pago["user_id"]
     
-    await update.message.reply_text("📤 Descargando script desde GitHub...")
+    await update.message.reply_text("📤 Descargando script desde GitHub...", parse_mode=None)
     
     script_content = descargar_script_desde_github(script_id)
     
     if not script_content:
         text = get_text(user_id, "confirm_file_not_found")
-        await update.message.reply_text(text, parse_mode="Markdown")
+        await update.message.reply_text(text, parse_mode=None)
         return
     
     max_intentos = 3
@@ -83,13 +83,13 @@ async def cmd_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if enviado:
         if actualizar_estado_pago(pago_id, "entregado"):
             text = get_text(user_id, "confirm_sent", comprador_id=comprador_id)
-            await update.message.reply_text(text, parse_mode="Markdown")
+            await update.message.reply_text(text, parse_mode=None)
         else:
             text = get_text(user_id, "confirm_db_error")
-            await update.message.reply_text(text, parse_mode="Markdown")
+            await update.message.reply_text(text, parse_mode=None)
     else:
         text = get_text(user_id, "confirm_send_error", error=str(ultimo_error)[:200])
-        await update.message.reply_text(text, parse_mode="Markdown")
+        await update.message.reply_text(text, parse_mode=None)
         logger.error(f"No se pudo enviar script {script_id} a {comprador_id} después de {max_intentos} intentos")
 
 async def cmd_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -97,7 +97,7 @@ async def cmd_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if user_id != MI_USER_ID:
         text = get_text(user_id, "list_not_authorized")
-        await update.message.reply_text(text)
+        await update.message.reply_text(text, parse_mode=None)
         return
     
     db = cargar_db()
@@ -105,7 +105,7 @@ async def cmd_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if not pagos_pendientes:
         text = get_text(user_id, "list_empty")
-        await update.message.reply_text(text, parse_mode="Markdown")
+        await update.message.reply_text(text, parse_mode=None)
         return
     
     mensaje = get_text(user_id, "list_title")
@@ -118,13 +118,13 @@ async def cmd_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                user_id=datos["user_id"])
     
     mensaje += get_text(user_id, "list_footer")
-    await update.message.reply_text(mensaje, parse_mode="Markdown")
+    await update.message.reply_text(mensaje, parse_mode=None)
 
 async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     
     if user_id != MI_USER_ID:
-        await update.message.reply_text("❌ Not authorized.")
+        await update.message.reply_text("❌ Not authorized.", parse_mode=None)
         return
     
     from database import obtener_estadisticas
@@ -135,12 +135,12 @@ async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     total_ganado = stats["total_ganado"]
     scripts_ordenados = stats["scripts_ordenados"]
     
-    mensaje = "📊 *BOT STATISTICS*\n\n"
-    mensaje += f"💰 *Total earned:* {total_ganado:.2f} USDT\n"
-    mensaje += f"📦 *Total purchases:* {total_compras}\n"
-    mensaje += f"⭐ *Average per sale:* {total_ganado/total_compras if total_compras > 0 else 0:.2f} USDT\n\n"
+    mensaje = "📊 BOT STATISTICS\n\n"
+    mensaje += f"💰 Total earned: {total_ganado:.2f} USDT\n"
+    mensaje += f"📦 Total purchases: {total_compras}\n"
+    mensaje += f"⭐ Average per sale: {total_ganado/total_compras if total_compras > 0 else 0:.2f} USDT\n\n"
     
-    mensaje += "📋 *Top scripts:*\n"
+    mensaje += "📋 Top scripts:\n"
     if scripts_ordenados:
         for script_id, cantidad in scripts_ordenados:
             nombre = NOMBRES_SCRIPTS.get(script_id, f"Script {script_id}")
@@ -148,14 +148,14 @@ async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         mensaje += "   No sales recorded yet.\n"
     
-    mensaje += "\n🟢 *Status:* Active on Railway"
-    await update.message.reply_text(mensaje, parse_mode="Markdown")
+    mensaje += "\n🟢 Status: Active on Railway"
+    await update.message.reply_text(mensaje, parse_mode=None)
 
 async def cmd_errores(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     
     if user_id != MI_USER_ID:
-        await update.message.reply_text("❌ No autorizado.")
+        await update.message.reply_text("❌ No autorizado.", parse_mode=None)
         return
     
     logs = obtener_ultimos_errores(50)
@@ -166,33 +166,33 @@ async def cmd_errores(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if logs and logs.strip():
         await update.message.reply_text(
-            f"{text}```\n{logs}\n```",
-            parse_mode="Markdown"
+            f"{text}\n```\n{logs}\n```",
+            parse_mode=None
         )
     else:
         empty_text = get_text(user_id, "errors_empty")
-        await update.message.reply_text(empty_text, parse_mode="Markdown")
+        await update.message.reply_text(empty_text, parse_mode=None)
 
 async def cmd_save_db(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     
     if user_id != MI_USER_ID:
-        await update.message.reply_text("❌ No autorizado.")
+        await update.message.reply_text("❌ No autorizado.", parse_mode=None)
         return
     
-    await update.message.reply_text(get_text(user_id, "save_db_start"))
+    await update.message.reply_text(get_text(user_id, "save_db_start"), parse_mode=None)
     
     db = cargar_db()
     
     if guardar_backup_en_gist(db):
         await update.message.reply_text(
             get_text(user_id, "save_db_success"),
-            parse_mode="Markdown"
+            parse_mode=None
         )
     else:
         await update.message.reply_text(
             get_text(user_id, "save_db_error"),
-            parse_mode="Markdown"
+            parse_mode=None
         )
 
 
@@ -204,20 +204,20 @@ async def cmd_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     
     if user_id != MI_USER_ID:
-        await update.message.reply_text("❌ No autorizado.")
+        await update.message.reply_text("❌ No autorizado.", parse_mode=None)
         return
     
     mensaje = (
-        "👑 *Panel de Administración*\n\n"
-        "📌 *Comandos disponibles para admin:*\n\n"
+        "👑 Panel de Administración\n\n"
+        "📌 Comandos disponibles para admin:\n\n"
         "/confirm [ID_pago] - Confirmar pago y entregar script\n"
         "/list - Ver pagos pendientes\n"
         "/stats - Ver estadísticas del bot\n"
         "/errores - Ver últimos errores registrados\n"
         "/save_db - Guardar backup manual de la base de datos\n"
         "/admin - Mostrar este panel\n\n"
-        "📊 *Comandos públicos (visibles para usuarios):*\n"
+        "📊 Comandos públicos (visibles para usuarios):\n"
         "/start, /price, /buy, /status, /language\n\n"
-        "🟢 *Estado:* Activo"
+        "🟢 Estado: Activo"
     )
-    await update.message.reply_text(mensaje, parse_mode="Markdown")
+    await update.message.reply_text(mensaje, parse_mode=None)

@@ -40,7 +40,7 @@ async def verificar_pagos_automaticos(context: ContextTypes.DEFAULT_TYPE):
                 await context.bot.send_message(
                     chat_id=MI_USER_ID,
                     text=text,
-                    parse_mode="Markdown"
+                    parse_mode=None
                 )
                 logger.info(f"Pago automático detectado: {pago_id}")
             except Exception as e:
