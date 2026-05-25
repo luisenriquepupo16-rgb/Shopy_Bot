@@ -26,7 +26,6 @@ from handlers import (
     verificar_pagos_automaticos
 )
 from database import registrar_error, limpiar_pagos_viejos, cargar_backup_desde_gist
-from config import cargar_scripts_desde_github
 
 async def error_handler(update, context):
     """Manejador global de errores del bot"""
@@ -60,68 +59,68 @@ async def error_handler(update, context):
 async def generar_checklist_inicio():
     """
     Ejecuta todas las comprobaciones de inicio y retorna un diccionario con resultados.
-    Cada ítem tiene: (nombre, estado, mensaje_detalle)
     """
     resultados = []
     
-    # 1. Conexión con Telegram (esto ya se verificó antes)
-    resultados.append(("🔌 Conexión con Telegram", "✅ CLEAR", "Bot conectado a la API"))
+    # 1. Conexión con Telegram
+    resultados.append(("🔌 Conexión con Telegram", "CLEAR", "Bot conectado a la API"))
     
     # 2. Carga de scripts desde GitHub Releases
     try:
         from config import PRECIOS, NOMBRES_SCRIPTS, DESCRIPCIONES_SCRIPTS
         if PRECIOS and len(PRECIOS) > 0:
-            resultados.append(("📦 Carga de scripts desde GitHub", "✅ CLEAR", f"{len(PRECIOS)} scripts cargados"))
+            resultados.append(("📦 Carga de scripts desde GitHub", "CLEAR", f"{len(PRECIOS)} scripts cargados"))
         else:
-            resultados.append(("📦 Carga de scripts desde GitHub", "⚠️ WARNING", "No se encontraron scripts"))
+            resultados.append(("📦 Carga de scripts desde GitHub", "WARNING", "No se encontraron scripts"))
     except Exception as e:
-        resultados.append(("📦 Carga de scripts desde GitHub", "❌ FAIL", str(e)[:50]))
+        resultados.append(("📦 Carga de scripts desde GitHub", "FAIL", str(e)[:50]))
     
     # 3. Verificación de archivos de scripts en GitHub
     try:
         from config import GITHUB_RAW_CONTENT
-        script_url = f"{GITHUB_RAW_CONTENT}/script_1.zip"
         import requests
-        response = requests.head(script_url, timeout=5)
+        # Verificar que el script_1.zip existe en la release
+        script_url = f"{GITHUB_RAW_CONTENT}/script_1.zip"
+        response = requests.head(script_url, timeout=10)
         if response.status_code == 200:
-            resultados.append(("📥 Scripts disponibles en GitHub", "✅ CLEAR", "script_1.zip encontrado"))
+            resultados.append(("📥 Scripts disponibles en GitHub", "CLEAR", "script_1.zip encontrado"))
         else:
-            resultados.append(("📥 Scripts disponibles en GitHub", "⚠️ WARNING", "No se pudo verificar script_1.zip"))
+            resultados.append(("📥 Scripts disponibles en GitHub", "WARNING", f"HTTP {response.status_code} - script_1.zip no accesible"))
     except Exception as e:
-        resultados.append(("📥 Scripts disponibles en GitHub", "⚠️ WARNING", "Error en verificación"))
+        resultados.append(("📥 Scripts disponibles en GitHub", "WARNING", f"Error de conexión: {str(e)[:40]}"))
     
     # 4. Carga de backup desde GitHub Gist
     try:
         backup_data = cargar_backup_desde_gist()
         if backup_data:
             pagos_count = len(backup_data.get("pagos_pendientes", {}))
-            resultados.append(("💾 Carga de backup desde Gist", "✅ CLEAR", f"{pagos_count} pagos restaurados"))
+            resultados.append(("💾 Carga de backup desde Gist", "CLEAR", f"{pagos_count} pagos restaurados"))
         else:
-            resultados.append(("💾 Carga de backup desde Gist", "ℹ️ INFO", "No se encontró backup previo"))
+            resultados.append(("💾 Carga de backup desde Gist", "INFO", "No se encontró backup previo"))
     except Exception as e:
-        resultados.append(("💾 Carga de backup desde Gist", "❌ FAIL", str(e)[:50]))
+        resultados.append(("💾 Carga de backup desde Gist", "FAIL", str(e)[:50]))
     
     # 5. Base de datos local
     try:
         from database import cargar_db
         db = cargar_db()
         pagos_count = len(db.get("pagos_pendientes", {}))
-        resultados.append(("🗄️ Base de datos local", "✅ CLEAR", f"{pagos_count} pagos en memoria"))
+        resultados.append(("🗄️ Base de datos local", "CLEAR", f"{pagos_count} pagos en memoria"))
     except Exception as e:
-        resultados.append(("🗄️ Base de datos local", "❌ FAIL", str(e)[:50]))
+        resultados.append(("🗄️ Base de datos local", "FAIL", str(e)[:50]))
     
     # 6. Verificación de pagos automáticos
-    resultados.append(("🔄 Verificación automática de pagos", "✅ CLEAR", "Activada (cada 30 segundos)"))
+    resultados.append(("🔄 Verificación automática de pagos", "CLEAR", "Activada (cada 30 segundos)"))
     
     # 7. Limpieza automática de pagos viejos
     try:
         eliminados = limpiar_pagos_viejos(dias_limite=30)
         if eliminados > 0:
-            resultados.append(("🧹 Limpieza de pagos viejos", "✅ CLEAR", f"{eliminados} pagos eliminados"))
+            resultados.append(("🧹 Limpieza de pagos viejos", "CLEAR", f"{eliminados} pagos eliminados"))
         else:
-            resultados.append(("🧹 Limpieza de pagos viejos", "✅ CLEAR", "No se encontraron pagos viejos"))
+            resultados.append(("🧹 Limpieza de pagos viejos", "CLEAR", "No se encontraron pagos viejos"))
     except Exception as e:
-        resultados.append(("🧹 Limpieza de pagos viejos", "⚠️ WARNING", str(e)[:50]))
+        resultados.append(("🧹 Limpieza de pagos viejos", "WARNING", str(e)[:50]))
     
     return resultados
 
@@ -137,7 +136,6 @@ async def main():
     
     logger.info("Registrando comandos...")
     
-    # Comandos públicos (visibles para todos)
     app.add_handler(CommandHandler("start", cmd_start))
     logger.info("  ✓ /start registrado (público)")
     
@@ -153,7 +151,6 @@ async def main():
     app.add_handler(CommandHandler("language", cmd_language))
     logger.info("  ✓ /language registrado (público)")
     
-    # Comandos de administrador (solo visibles para admin)
     app.add_handler(CommandHandler("confirm", cmd_confirm))
     logger.info("  ✓ /confirm registrado (admin)")
     
@@ -172,7 +169,6 @@ async def main():
     app.add_handler(CommandHandler("admin", cmd_admin))
     logger.info("  ✓ /admin registrado (admin)")
     
-    # Manejador global de errores
     app.add_error_handler(error_handler)
     
     logger.info("✅ Todos los handlers registrados")
@@ -191,49 +187,6 @@ async def main():
         logger.info("✅ Bot conectado y funcionando!")
         
         # ============================================================
-        # GENERAR CHECKLIST DE INICIO
-        # ============================================================
-        checklist = await generar_checklist_inicio()
-        
-        # Contar estados
-        total_clear = sum(1 for _, estado, _ in checklist if "CLEAR" in estado)
-        total_checks = len(checklist)
-        
-        # Construir mensaje de checklist
-        checklist_texto = "📋 *CHECKLIST DE INICIO DEL BOT*\n\n"
-        for nombre, estado, detalle in checklist:
-            icono = "✅" if "CLEAR" in estado else "❌" if "FAIL" in estado else "⚠️"
-            checklist_texto += f"{icono} **{nombre}**: {estado}\n"
-            if detalle:
-                checklist_texto += f"   └ `{detalle}`\n"
-        
-        checklist_texto += f"\n📊 *Resumen:* {total_clear}/{total_checks} verificaciones exitosas"
-        
-        if total_clear == total_checks:
-            checklist_texto += "\n🎉 *Estado general: OPERATIVO*"
-        elif total_clear >= total_checks - 2:
-            checklist_texto += "\n⚠️ *Estado general: OPERATIVO CON ADVERTENCIAS*"
-        else:
-            checklist_texto += "\n🔴 *Estado general: REQUIERE ATENCIÓN*"
-        
-        # ============================================================
-        # NOTIFICACIÓN DE INICIO AL ADMIN (con checklist)
-        # ============================================================
-        try:
-            await app.bot.send_message(
-                chat_id=MI_USER_ID,
-                text=checklist_texto,
-                parse_mode="Markdown"
-            )
-            logger.info("📨 Notificación de inicio con checklist enviada al admin")
-        except Exception as e:
-            logger.warning(f"No se pudo enviar notificación de inicio: {e}")
-            registrar_error(
-                "Notificación de inicio fallida",
-                f"Error: {e}"
-            )
-        
-        # ============================================================
         # TAREA PERIÓDICA: VERIFICAR PAGOS CADA 30 SEGUNDOS
         # ============================================================
         job_queue = app.job_queue
@@ -246,6 +199,45 @@ async def main():
                 "JobQueue no disponible",
                 "La verificación automática de pagos está desactivada"
             )
+        
+        # ============================================================
+        # GENERAR Y ENVIAR CHECKLIST DE INICIO (SOLO UNA VEZ)
+        # ============================================================
+        checklist = await generar_checklist_inicio()
+        
+        total_clear = sum(1 for _, estado, _ in checklist if estado == "CLEAR")
+        total_checks = len(checklist)
+        
+        checklist_texto = "📋 CHECKLIST DE INICIO DEL BOT\n\n"
+        for nombre, estado, detalle in checklist:
+            if estado == "CLEAR":
+                icono = "✅"
+            elif estado == "FAIL":
+                icono = "❌"
+            else:
+                icono = "⚠️"
+            checklist_texto += f"{icono} {nombre}: {estado}\n"
+            if detalle:
+                checklist_texto += f"   └ {detalle}\n"
+        
+        checklist_texto += f"\nResumen: {total_clear}/{total_checks} verificaciones exitosas"
+        
+        if total_clear == total_checks:
+            checklist_texto += "\nEstado general: OPERATIVO"
+        elif total_clear >= total_checks - 2:
+            checklist_texto += "\nEstado general: OPERATIVO CON ADVERTENCIAS"
+        else:
+            checklist_texto += "\nEstado general: REQUIERE ATENCIÓN"
+        
+        try:
+            await app.bot.send_message(
+                chat_id=MI_USER_ID,
+                text=checklist_texto
+            )
+            logger.info("📨 Checklist de inicio enviada al admin")
+        except Exception as e:
+            logger.warning(f"No se pudo enviar checklist de inicio: {e}")
+            registrar_error("Checklist de inicio fallida", f"Error: {e}")
         
         logger.info("💡 Presiona Ctrl+C para detener")
         
