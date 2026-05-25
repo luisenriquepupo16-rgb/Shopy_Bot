@@ -1,6 +1,6 @@
 # config.py
 # ============================================================
-# CONFIGURACIÓN DEL BOT - VERSIÓN CON GITHUB RELEASES
+# CONFIGURACIÓN DEL BOT - VERSIÓN CON GITHUB RELEASES Y BACKUP
 # ============================================================
 
 import os
@@ -21,11 +21,19 @@ WALLET_DIRECCION = "TJmQHdTKygppAdoHJX4QWghSCqoKSqdYtN"
 
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
 GITHUB_REPO = "luisenriquepupo16-rgb/Shopy_Bot"
-RELEASE_TAG = "v1.0.0"  # <-- AHORA USA v1.0.0
+RELEASE_TAG = "v1.0.0"
 
 # URLs de GitHub API
 GITHUB_API_RELEASES = f"https://api.github.com/repos/{GITHUB_REPO}/releases/tags/{RELEASE_TAG}"
 GITHUB_RAW_CONTENT = f"https://github.com/{GITHUB_REPO}/releases/download/{RELEASE_TAG}"
+
+# ============================================================
+# CONFIGURACIÓN DE GITHUB GIST PARA BACKUP
+# ============================================================
+
+# ID del Gist creado (extraído de la URL: https://gist.github.com/luisenriquepupo16-rgb/ce9c7de5bd7595613093855e96757519)
+# El ID es la parte final: ce9c7de5bd7595613093855e96757519
+BACKUP_GIST_ID = os.environ.get("BACKUP_GIST_ID", "ce9c7de5bd7595613093855e96757519")
 
 # ============================================================
 # MENSAJE DE PAGO
@@ -55,13 +63,11 @@ def cargar_scripts_desde_github():
     NOMBRES_SCRIPTS = {}
     DESCRIPCIONES_SCRIPTS = {}
     
-    # Headers para autenticación en GitHub API
     headers = {}
     if GITHUB_TOKEN:
         headers["Authorization"] = f"token {GITHUB_TOKEN}"
     
     try:
-        # Obtener información de la release desde GitHub API
         print(f"🔍 Buscando release: {GITHUB_REPO} / {RELEASE_TAG}")
         response = requests.get(GITHUB_API_RELEASES, headers=headers, timeout=10)
         
@@ -75,7 +81,6 @@ def cargar_scripts_desde_github():
             for asset in assets:
                 print(f"   - {asset.get('name')}")
             
-            # Buscar archivo de metadatos en los assets
             metadata_asset = None
             for asset in assets:
                 if asset.get("name") == "metadata.json":
@@ -83,7 +88,6 @@ def cargar_scripts_desde_github():
                     break
             
             if metadata_asset:
-                # Descargar metadata.json
                 metadata_url = metadata_asset.get("browser_download_url")
                 print(f"📥 Descargando metadata desde: {metadata_url}")
                 meta_response = requests.get(metadata_url, timeout=10)

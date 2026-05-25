@@ -1,6 +1,6 @@
 # database.py
 # ============================================================
-# MANEJO DE LA BASE DE DATOS (archivo JSON)
+# MANEJO DE LA BASE DE DATOS (archivo JSON) - CON BACKUP A GITHUB GIST
 # ============================================================
 
 import json
@@ -9,8 +9,28 @@ import time
 import requests
 from datetime import datetime
 
-DB_FILE = "db.json"
-ERROR_LOG_FILE = "errores.log"
+# ============================================================
+# CONFIGURACIÓN DE RUTAS PERSISTENTES PARA RAILWAY
+# ============================================================
+RAILWAY_VOLUME_PATH = os.environ.get("RAILWAY_VOLUME_MOUNT_PATH", "")
+if RAILWAY_VOLUME_PATH and os.path.exists(RAILWAY_VOLUME_PATH):
+    DATA_DIR = RAILWAY_VOLUME_PATH
+else:
+    DATA_DIR = os.path.dirname(os.path.abspath(__file__))
+
+DB_FILE = os.path.join(DATA_DIR, "db.json")
+ERROR_LOG_FILE = os.path.join(DATA_DIR, "errores.log")
+
+# ============================================================
+# CONFIGURACIÓN DE GITHUB GIST PARA BACKUP
+# ============================================================
+BACKUP_GIST_ID = os.environ.get("BACKUP_GIST_ID", "")
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
+BACKUP_GIST_FILENAME = "db_backup.json"
+
+# ============================================================
+# FUNCIONES BASE DE DATOS
+# ============================================================
 
 def cargar_db():
     """Carga la base de datos desde el archivo JSON"""
@@ -29,6 +49,8 @@ def cargar_db():
 def guardar_db(db):
     """Guarda la base de datos en el archivo JSON"""
     try:
+        # Asegurar que el directorio existe
+        os.makedirs(DATA_DIR, exist_ok=True)
         with open(DB_FILE, "w", encoding="utf-8") as f:
             json.dump(db, f, indent=2, ensure_ascii=False)
         return True
@@ -120,13 +142,14 @@ def registrar_error(mensaje, contexto=""):
     """
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     try:
+        os.makedirs(DATA_DIR, exist_ok=True)
         with open(ERROR_LOG_FILE, "a", encoding="utf-8") as f:
             f.write(f"[{timestamp}] ERROR: {mensaje}\n")
             if contexto:
                 f.write(f"    Contexto: {contexto}\n")
             f.write("-" * 50 + "\n")
     except:
-        pass  # Si falla el log, no detener el programa
+        pass
 
 def obtener_ultimos_errores(num_lineas=50):
     """
@@ -214,7 +237,6 @@ def obtener_estadisticas():
                 ventas_por_script[script_id] = 0
             ventas_por_script[script_id] += 1
     
-    # Ordenar scripts por ventas (mayor a menor)
     scripts_ordenados = sorted(ventas_por_script.items(), key=lambda x: x[1], reverse=True)
     
     return {
@@ -249,10 +271,125 @@ def limpiar_pagos_viejos(dias_limite=30):
     
     for pago_id in pagos_a_eliminar:
         del db["pagos_pendientes"][pago_id]
-        # Usar print en lugar de logger (database.py no tiene logger configurado)
         print(f"Pago viejo eliminado: {pago_id} (antigüedad > {dias_limite} días)")
     
     if pagos_a_eliminar:
         guardar_db(db)
     
     return len(pagos_a_eliminar)
+
+# ============================================================
+# FUNCIONES PARA BACKUP EN GITHUB GIST
+# ============================================================
+
+def guardar_backup_en_gist(datos_db):
+    """
+    Guarda la base de datos completa en un GitHub Gist.
+    Retorna True si fue exitoso, False en caso contrario.
+    """
+    if not BACKUP_GIST_ID or not GITHUB_TOKEN:
+        registrar_error("Backup no configurado", "BACKUP_GIST_ID o GITHUB_TOKEN faltantes")
+        return False
+    
+    url = f"https://api.github.com/gists/{BACKUP_GIST_ID}"
+    headers = {
+        "Authorization": f"token {GITHUB_TOKEN}",
+        "Accept": "application/vnd.github.v3+json"
+    }
+    
+    contenido = json.dumps(datos_db, indent=2, ensure_ascii=False)
+    
+    # Obtener el gist actual para mantener otros archivos
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        if response.status_code == 200:
+            gist_data = response.json()
+            files = gist_data.get("files", {})
+        else:
+            files = {}
+    except:
+        files = {}
+    
+    files[BACKUP_GIST_FILENAME] = {"content": contenido}
+    payload = {"files": files}
+    
+    try:
+        response = requests.patch(url, headers=headers, json=payload, timeout=15)
+        if response.status_code in [200, 201]:
+            print(f"✅ Backup guardado exitosamente en Gist {BACKUP_GIST_ID}")
+            registrar_error(f"Backup exitoso", f"Gist ID: {BACKUP_GIST_ID}")
+            return True
+        else:
+            print(f"❌ Error guardando backup: HTTP {response.status_code}")
+            registrar_error(f"Error guardando backup", f"HTTP {response.status_code}: {response.text[:200]}")
+            return False
+    except Exception as e:
+        print(f"❌ Excepción guardando backup: {e}")
+        registrar_error(f"Excepción guardando backup", str(e))
+        return False
+
+def cargar_backup_desde_gist():
+    """
+    Carga la base de datos desde un GitHub Gist.
+    Retorna los datos o None si no existe o hay error.
+    """
+    if not BACKUP_GIST_ID or not GITHUB_TOKEN:
+        print("⚠️ Backup no configurado: BACKUP_GIST_ID o GITHUB_TOKEN faltantes")
+        return None
+    
+    url = f"https://api.github.com/gists/{BACKUP_GIST_ID}"
+    headers = {
+        "Authorization": f"token {GITHUB_TOKEN}",
+        "Accept": "application/vnd.github.v3+json"
+    }
+    
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        if response.status_code == 200:
+            gist_data = response.json()
+            files = gist_data.get("files", {})
+            
+            if BACKUP_GIST_FILENAME in files:
+                contenido_raw = files[BACKUP_GIST_FILENAME].get("content", "{}")
+                datos = json.loads(contenido_raw)
+                print(f"✅ Backup cargado exitosamente desde Gist {BACKUP_GIST_ID}")
+                pagos_count = len(datos.get("pagos_pendientes", {}))
+                print(f"   📦 {pagos_count} pagos restaurados")
+                return datos
+            else:
+                print(f"⚠️ No se encontró {BACKUP_GIST_FILENAME} en el Gist")
+                return None
+        elif response.status_code == 404:
+            print(f"⚠️ Gist {BACKUP_GIST_ID} no encontrado (404)")
+            return None
+        else:
+            print(f"⚠️ Error cargando backup: HTTP {response.status_code}")
+            return None
+    except Exception as e:
+        print(f"⚠️ Excepción cargando backup: {e}")
+        return None
+
+def restaurar_backup_si_existe():
+    """
+    Restaura la base de datos desde el backup si existe y tiene datos.
+    Retorna True si se restauró algo, False en caso contrario.
+    """
+    backup_data = cargar_backup_desde_gist()
+    
+    if not backup_data:
+        return False
+    
+    db_actual = cargar_db()
+    
+    # Verificar si el backup tiene datos más recientes o más completos
+    pagos_backup = len(backup_data.get("pagos_pendientes", {}))
+    pagos_actual = len(db_actual.get("pagos_pendientes", {}))
+    
+    if pagos_backup > pagos_actual or pagos_backup > 0:
+        guardar_db(backup_data)
+        print(f"✅ Backup restaurado: {pagos_backup} pagos cargados")
+        registrar_error(f"Backup restaurado al iniciar", f"{pagos_backup} pagos cargados")
+        return True
+    else:
+        print(f"ℹ️ Backup disponible pero los datos locales están actualizados")
+        return False
